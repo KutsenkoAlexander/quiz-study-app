@@ -1,61 +1,49 @@
 package ua.kutsenko.quiz.client;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 
-import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class QuizClientApplication {
-
-    private final CloseableHttpClient httpClient = HttpClients.createDefault();
-    private String setActiveUserStatusUrl = "http://localhost:8081/api/";
 
     public static void main(String[] args) {
 
         QuizClientApplication clientApplication = new QuizClientApplication();
-        ExecutorService executor = Executors.newFixedThreadPool(10);
+        ExecutorService executor = Executors.newFixedThreadPool(20);
 
-        Runnable runnableTask = () -> {
-                try {
-                    try {
-                        for (int i = 1001; i <= 1100; i++) {
-                            clientApplication.setActiveUserStatus(i);
-                        }
-                    } finally {
-                        clientApplication.close();
+        int students = 100;
+        clientApplication.initTable(students);
+
+        List<Runnable> runnable = IntStream.range(1, students)
+                .mapToObj(userId -> ((Runnable) () -> {
+                    try (CloseableHttpClient client = HttpClients.createDefault()) {
+                        System.out.println(">>> Sending request for userId: " + userId);
+                        HttpPut request = new HttpPut("http://localhost:8081/api/" + userId);
+                        client.execute(request);
+                        System.out.println("    Request is send for userId: " + userId);
+                    } catch (Exception e) {
+                        System.out.println(e);
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-        };
+                }))
+                .collect(Collectors.toList());
 
-        executor.execute(runnableTask);
+        runnable.forEach(executor::submit);
         executor.shutdown();
     }
 
-    private void close() throws Exception {
-        httpClient.close();
-    }
-
-
-    private void setActiveUserStatus(int userId) throws Exception {
-            HttpPut request = new HttpPut(setActiveUserStatusUrl + userId);
-            executeRequest(httpClient.execute(request));
-    }
-
-    private void executeRequest(CloseableHttpResponse execute) throws IOException {
-        try (CloseableHttpResponse response = execute) {
-            HttpEntity entity = response.getEntity();
-            if (entity != null) {
-                String result = EntityUtils.toString(entity);
-                System.out.println(result);
-            }
+    private void initTable(int students) {
+        HttpGet request = new HttpGet("http://localhost:8081/api/init/" + students);
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            client.execute(request);
+        } catch (Exception e) {
+            System.out.println(e);
         }
     }
 }

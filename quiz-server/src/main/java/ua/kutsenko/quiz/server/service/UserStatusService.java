@@ -3,6 +3,8 @@ package ua.kutsenko.quiz.server.service;
 import ua.kutsenko.quiz.server.model.ActiveUserNumber;
 
 public interface UserStatusService {
-    ActiveUserNumber updateStatus(int userId);
+    void deleteAll();
+    void createStatus(int userId);
+    void updateStatus(int userId);
     ActiveUserNumber getActiveUsersNumber();
 }
